@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { User } from "@/lib/data";
 import { createColumnHelper } from "@tanstack/react-table";
 import { MoreVertical } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +29,9 @@ export function GridDataTable({
   isLoading = false,
   error = null,
 }: GridDataTableProps) {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
   const columns = useMemo(
     () => [
       columnHelper.display({
@@ -126,7 +129,7 @@ export function GridDataTable({
       columns={columns}
       data={initialData}
       getRowId={(row, index) => `${row.email}-${index}`}
-      isLoading={isLoading}
+      isLoading={isLoading || !hydrated}
       error={error}
       height={400}
       showSelectionSummary

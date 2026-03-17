@@ -1,33 +1,21 @@
 import Link from "next/link";
 import AppHeader from "@/components/app-header";
-import { ModeToggle } from "@/components/theme-mode-toggle";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background font-sans antialiased overflow-x-hidden">
-      <AppHeader>
-        <ModeToggle />
-        <Link
-          href="/grid"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Data Grid Demo
-        </Link>
-        <Button asChild size="sm">
-          <Link href="/grid">View Demo</Link>
-        </Button>
-      </AppHeader>
+      <AppHeader variant="landing" />
 
-      <main className="mx-auto max-w-4xl px-4 pt-20 pb-32">
+      <main className="mx-auto max-w-6xl px-4 pt-20 pb-32">
         <p className="text-sm font-medium uppercase tracking-wider text-primary mb-4">
           High-performance data grid
         </p>
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl max-w-3xl leading-[1.1]">
+        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl max-w-5xl leading-[1.1]">
           A reusable grid built for 10k+ rows with virtualized rendering and
           smooth scroll
         </h1>
-        <p className="mt-6 text-lg text-muted-foreground max-w-2xl">
+        <p className="mt-6 text-lg text-muted-foreground max-w-4xl">
           Sortable columns, column filtering, row selection, sticky header, and
           keyboard navigation. TanStack Table + TanStack Virtual. No bloat—just
           the core you need.
@@ -41,7 +29,7 @@ export default function Home() {
           </p>
         </div>
 
-        <section className="mt-24">
+        <section className="mt-20">
           <h2 className="text-2xl font-semibold text-foreground mb-2">
             What’s in the demo
           </h2>

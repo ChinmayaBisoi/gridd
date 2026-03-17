@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+
 export type User = {
   firstName: string;
   lastName: string;
@@ -7,8 +8,7 @@ export type User = {
   comments: string;
 };
 
-export const createUser = (numUser: number) => {
-  console.log("createUser");
+export function createUser(numUser: number): User[] {
   const users: User[] = [];
   for (let i = 0; i < numUser; i++) {
     users.push({
@@ -20,8 +20,4 @@ export const createUser = (numUser: number) => {
     });
   }
   return users;
-};
-
-// export const data: User[] = [
-//     ...createUser(10000)
-// ];
+}

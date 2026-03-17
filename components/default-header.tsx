@@ -12,7 +12,7 @@ export function DefaultHeader<TData>({
     <TableHead
       key={header.column.id}
       colSpan={header.colSpan}
-      className={cn("relative font-semibold text-left p-2 bg-background")}
+      className={cn("relative font-semibold text-left p-3")}
       style={{
         width: header.column.getSize(),
         flex: `0 0 ${header.column.getSize()}px`,

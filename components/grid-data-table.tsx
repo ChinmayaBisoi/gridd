@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataGrid } from "@/components/data-grid";
+import { useGridSearchParams } from "@/lib/grid-search-params";
 
 const columnHelper = createColumnHelper<User>();
 
@@ -31,6 +32,7 @@ export function GridDataTable({
 }: GridDataTableProps) {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
+  const gridState = useGridSearchParams();
 
   const columns = useMemo(
     () => [
@@ -134,6 +136,7 @@ export function GridDataTable({
       height={400}
       showSelectionSummary
       filterableColumns={filterableColumns}
+      controlledState={gridState}
     />
   );
 }

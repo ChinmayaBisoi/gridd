@@ -28,9 +28,9 @@ import { cn } from "@/lib/utils";
 
 const ROW_HEIGHT = 35;
 
-type FilterOperator = "contains" | "equals" | "startsWith" | "endsWith";
+export type FilterOperator = "contains" | "equals" | "startsWith" | "endsWith";
 
-type FilterRow = {
+export type FilterRow = {
   id: string;
   columnId: string;
   operator: FilterOperator;
@@ -63,6 +63,19 @@ function applyOperator(
   }
 }
 
+export type DataGridControlledState = {
+  sorting: SortingState;
+  setSorting: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
+  filterRows: FilterRow[];
+  setFilterRows: (updater: FilterRow[] | ((prev: FilterRow[]) => FilterRow[])) => void;
+  rowSelection: Record<string, boolean>;
+  setRowSelection: (
+    updater:
+      | Record<string, boolean>
+      | ((prev: Record<string, boolean>) => Record<string, boolean>)
+  ) => void;
+};
+
 export type DataGridProps<T> = {
   columns: ColumnDef<T, any>[];
   data: T[];
@@ -72,6 +85,7 @@ export type DataGridProps<T> = {
   height?: number;
   showSelectionSummary?: boolean;
   filterableColumns?: { id: string; label: string }[];
+  controlledState?: DataGridControlledState;
 };
 
 export function DataGrid<T>({
@@ -83,14 +97,22 @@ export function DataGrid<T>({
   height = 400,
   showSelectionSummary = true,
   filterableColumns = [],
+  controlledState,
 }: DataGridProps<T>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const [filterRows, setFilterRows] = useState<FilterRow[]>([]);
+  const [internalRowSelection, setInternalRowSelection] = useState<Record<string, boolean>>({});
+  const [internalFilterRows, setInternalFilterRows] = useState<FilterRow[]>([]);
   const [currentColumn, setCurrentColumn] = useState(filterableColumns[0]?.id ?? "");
   const [currentOperator, setCurrentOperator] = useState<FilterOperator>("contains");
   const [currentValue, setCurrentValue] = useState("");
+
+  const sorting = controlledState?.sorting ?? internalSorting;
+  const setSorting = controlledState?.setSorting ?? setInternalSorting;
+  const filterRows = controlledState?.filterRows ?? internalFilterRows;
+  const setFilterRows = controlledState?.setFilterRows ?? setInternalFilterRows;
+  const rowSelection = controlledState?.rowSelection ?? internalRowSelection;
+  const setRowSelection = controlledState?.setRowSelection ?? setInternalRowSelection;
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -571,6 +593,8 @@ export function DataGrid<T>({
         <p className="text-sm text-muted-foreground">
           {table.getSelectedRowModel().rows.length} of{" "}
           {table.getFilteredRowModel().rows.length} rows selected
+          {" · "}
+          {data.length.toLocaleString()} total rows
         </p>
       )}
     </div>

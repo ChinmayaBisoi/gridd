@@ -65,11 +65,9 @@ export function GridDataTable({
         enableColumnFilter: false,
         size: 40,
       }),
-      columnHelper.display({
+      columnHelper.accessor("slNo", {
         id: "slNo",
         header: "Sl No",
-        cell: ({ row }) => row.index + 1,
-        enableSorting: false,
         enableColumnFilter: false,
         size: 72,
       }),
@@ -154,6 +152,7 @@ export function GridDataTable({
       showSelectionSummary
       filterableColumns={filterableColumns}
       controlledState={gridState}
+      defaultSorting={[{ id: "slNo", desc: false }]}
     />
   );
 }

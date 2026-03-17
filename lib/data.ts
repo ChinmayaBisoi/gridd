@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 
 export type User = {
   id: string;
+  slNo: number;
   firstName: string;
   lastName: string;
   age: number;
@@ -20,6 +21,7 @@ export function createUser(numUser: number): User[] {
   for (let i = 0; i < numUser; i++) {
     users.push({
       id: randomId8(),
+      slNo: i + 1,
       firstName: faker.person.firstName(),
       lastName: faker.person.lastName(),
       age: faker.number.int({ min: 18, max: 90 }),

@@ -14,6 +14,7 @@ export type DataGridTableProps<T> = {
   outerContainerRef: React.RefObject<HTMLDivElement | null>;
   virtualRows: VirtualItem[];
   rowVirtualizerTotalSize: number;
+  scrollMargin: number;
   height: number;
   onKeyDown: (e: React.KeyboardEvent) => void;
 };
@@ -25,30 +26,37 @@ export function DataGridTable<T>({
   outerContainerRef,
   virtualRows,
   rowVirtualizerTotalSize,
+  scrollMargin,
   height,
   onKeyDown,
 }: DataGridTableProps<T>) {
   const { rows } = table.getRowModel();
+  const headerHeight = scrollMargin;
 
   return (
     <div
       data-slot="data-grid-table"
-      className="data-grid-table-scroll border border-primary bg-background overflow-x-auto overflow-y-hidden"
+      ref={(node) => {
+        (tableContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        (outerContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
+      className="data-grid-table-scroll border border-primary bg-background overflow-auto"
       style={{ maxWidth: "100%", height: `${height}px` }}
-      ref={outerContainerRef}
+      onKeyDown={onKeyDown}
     >
-      {/* Inner: fixed width so horizontal scrollbar appears on outer (at bottom) */}
       <div
         style={{
           width: `${totalTableWidth}px`,
           minWidth: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
+          height: `${headerHeight + rowVirtualizerTotalSize}px`,
+          position: "relative",
         }}
       >
-        {/* Header: no scroll, moves with outer horizontal scroll */}
-        <div className="shrink-0">
+        {/* Header: sticky at top, scrolls horizontally with content */}
+        <div
+          className="sticky top-0 z-10"
+          style={{ height: `${headerHeight}px` }}
+        >
           <Table
             scrollContainer={false}
             style={{ width: `${totalTableWidth}px`, tableLayout: "fixed" }}
@@ -99,78 +107,68 @@ export function DataGridTable<T>({
           </Table>
         </div>
 
-        {/* Body: vertical scroll only; horizontal scroll is on outer (bottom) */}
-        <div
-          ref={tableContainerRef}
-          className="data-grid-table-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
-          style={{ scrollbarGutter: "stable" }}
-          onKeyDown={onKeyDown}
-          onWheel={(e) => {
-            if (
-              Math.abs(e.deltaX) > Math.abs(e.deltaY) &&
-              outerContainerRef.current
-            ) {
-              e.preventDefault();
-              outerContainerRef.current.scrollLeft += e.deltaX;
-            }
+        {/* Body rows: absolutely positioned within the sized container */}
+        <Table
+          scrollContainer={false}
+          style={{
+            width: `${totalTableWidth}px`,
+            tableLayout: "fixed",
+            position: "absolute",
+            top: `${headerHeight}px`,
+            left: 0,
           }}
         >
-          <Table
-            scrollContainer={false}
-            style={{ width: `${totalTableWidth}px`, tableLayout: "fixed" }}
+          <TableBody
+            style={{
+              height: `${rowVirtualizerTotalSize}px`,
+              width: "100%",
+              position: "relative",
+            }}
           >
-            <TableBody
-              style={{
-                height: `${rowVirtualizerTotalSize}px`,
-                width: "100%",
-                position: "relative",
-              }}
-            >
-              {virtualRows.map((virtualItem) => {
-                const row = rows[virtualItem.index];
-                if (!row) return null;
-                return (
-                  <TableRow
-                    key={virtualItem.key}
-                    data-row-index={virtualItem.index}
-                    tabIndex={0}
-                    className="absolute top-0 left-0 flex w-full items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                    style={{
-                      height: `${virtualItem.size}px`,
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                    data-state={row.getIsSelected() ? "selected" : undefined}
-                    onClick={(e) => {
-                      if (
-                        (e.target as HTMLElement).closest("button,input")
-                      )
-                        return;
-                      row.toggleSelected();
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        style={{
-                          width: cell.column.getSize(),
-                          flex: `0 0 ${cell.column.getSize()}px`,
-                        }}
-                        className="p-3 text-sm text-foreground align-middle whitespace-nowrap"
-                      >
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis max-w-full block">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </span>
-                      </td>
-                    ))}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+            {virtualRows.map((virtualItem) => {
+              const row = rows[virtualItem.index];
+              if (!row) return null;
+              return (
+                <TableRow
+                  key={virtualItem.key}
+                  data-row-index={virtualItem.index}
+                  tabIndex={0}
+                  className="absolute top-0 left-0 flex w-full items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  style={{
+                    height: `${virtualItem.size}px`,
+                    transform: `translateY(${virtualItem.start - scrollMargin}px)`,
+                  }}
+                  data-state={row.getIsSelected() ? "selected" : undefined}
+                  onClick={(e) => {
+                    if (
+                      (e.target as HTMLElement).closest("button,input")
+                    )
+                      return;
+                    row.toggleSelected();
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      style={{
+                        width: cell.column.getSize(),
+                        flex: `0 0 ${cell.column.getSize()}px`,
+                      }}
+                      className="p-3 text-sm text-foreground align-middle whitespace-nowrap"
+                    >
+                      <span className="whitespace-nowrap overflow-hidden text-ellipsis max-w-full block">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </span>
+                    </td>
+                  ))}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

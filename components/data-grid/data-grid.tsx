@@ -19,6 +19,18 @@ import { DataGridTable } from "./data-grid-table";
 import type { DataGridProps, FilterOperator, FilterRow } from "./types";
 import { applyOperator } from "./utils";
 
+function getSortKey<T>(columns: ColumnDef<T, unknown>[], columnId: string): string | undefined {
+  const col = columns.find(
+    (c) => ("id" in c && c.id === columnId) || ("accessorKey" in c && c.accessorKey === columnId)
+  );
+  if (!col) return undefined;
+  return "accessorKey" in col && typeof col.accessorKey === "string"
+    ? col.accessorKey
+    : "id" in col && typeof col.id === "string"
+      ? col.id
+      : undefined;
+}
+
 export function DataGrid<T>({
   columns,
   data,
@@ -29,8 +41,11 @@ export function DataGrid<T>({
   showSelectionSummary = true,
   filterableColumns = [],
   controlledState,
+  defaultSorting,
 }: DataGridProps<T>) {
-  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = useState<SortingState>(
+    () => defaultSorting ?? []
+  );
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [internalRowSelection, setInternalRowSelection] = useState<
     Record<string, boolean>
@@ -53,21 +68,38 @@ export function DataGrid<T>({
     controlledState?.setRowSelection ?? setInternalRowSelection;
 
   const filteredData = useMemo(() => {
-    if (filterRows.length === 0) return data;
-    return data.filter((row) =>
-      filterRows.every((f) => {
-        if (!f.value.trim()) return true;
-        const col = columns.find(
-          (c) => "accessorKey" in c && c.accessorKey === f.columnId
-        );
-        if (!col || !("accessorKey" in col)) return true;
-        const cellValue = String(
-          (row as Record<string, unknown>)[col.accessorKey as string] ?? ""
-        );
-        return applyOperator(cellValue, f.operator, f.value);
-      })
-    );
-  }, [data, filterRows, columns]);
+    let result = data;
+    if (filterRows.length > 0) {
+      result = data.filter((row) =>
+        filterRows.every((f) => {
+          if (!f.value.trim()) return true;
+          const col = columns.find(
+            (c) => "accessorKey" in c && c.accessorKey === f.columnId
+          );
+          if (!col || !("accessorKey" in col)) return true;
+          const cellValue = String(
+            (row as Record<string, unknown>)[col.accessorKey as string] ?? ""
+          );
+          return applyOperator(cellValue, f.operator, f.value);
+        })
+      );
+    }
+    const sortSpec = defaultSorting?.[0];
+    if (!sortSpec) return result;
+    const key = getSortKey(columns, sortSpec.id);
+    if (!key) return result;
+    return [...result].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[key];
+      const bVal = (b as Record<string, unknown>)[key];
+      const aNum = typeof aVal === "number" ? aVal : NaN;
+      const bNum = typeof bVal === "number" ? bVal : NaN;
+      const cmp =
+        !Number.isNaN(aNum) && !Number.isNaN(bNum)
+          ? aNum - bNum
+          : String(aVal ?? "").localeCompare(String(bVal ?? ""), undefined, { numeric: true });
+      return sortSpec.desc ? -cmp : cmp;
+    });
+  }, [data, filterRows, columns, defaultSorting]);
 
   const table = useReactTable<T>({
     data: filteredData,
@@ -97,12 +129,15 @@ export function DataGrid<T>({
     [table.getState().columnSizing, table.getVisibleLeafColumns().length]
   );
 
+  const headerHeight = 44;
+
   const { rows } = table.getRowModel();
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 35,
     overscan: 20,
+    scrollMargin: headerHeight,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
 
@@ -238,6 +273,7 @@ export function DataGrid<T>({
         outerContainerRef={outerContainerRef}
         virtualRows={virtualRows}
         rowVirtualizerTotalSize={rowVirtualizer.getTotalSize()}
+        scrollMargin={headerHeight}
         height={height}
         onKeyDown={handleKeyDown}
       />

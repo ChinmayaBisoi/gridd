@@ -48,4 +48,6 @@ export type DataGridProps<T> = {
   showSelectionSummary?: boolean;
   filterableColumns?: DataGridFilterableColumn[];
   controlledState?: DataGridControlledState;
+  /** Initial sort; data is also pre-sorted by this so order is stable. */
+  defaultSorting?: SortingState;
 };

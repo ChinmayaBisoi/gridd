@@ -17,8 +17,8 @@ export default async function GridPage() {
           10k+ rows, virtualized
         </h1>
         <p className="text-muted-foreground text-sm mb-8 max-w-xl">
-          Sortable columns, row selection, sticky header. Scroll smoothly
-          through the dataset.
+          Sort and filter columns, select rows, use keyboard navigation, and
+          scroll smoothly through 10k+ rows with virtualization.
         </p>
         <GridDataTable initialData={initialData} />
       </main>

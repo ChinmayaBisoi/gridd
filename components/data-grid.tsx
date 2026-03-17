@@ -1,145 +1,233 @@
 "use client";
 
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  flexRender,
   type ColumnDef,
-  type SortingState,
   type ColumnFiltersState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef, useState, useCallback } from "react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Search, X } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Table, TableBody, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-const ROW_HEIGHT = 40;
-const HEADER_HEIGHT = 44;
+const ROW_HEIGHT = 35;
+
+type FilterOperator = "contains" | "equals" | "startsWith" | "endsWith";
+
+type FilterRow = {
+  id: string;
+  columnId: string;
+  operator: FilterOperator;
+  value: string;
+};
+
+const FILTER_OPERATORS: { value: FilterOperator; label: string }[] = [
+  { value: "contains", label: "Contains" },
+  { value: "equals", label: "Equals" },
+  { value: "startsWith", label: "Starts with" },
+  { value: "endsWith", label: "Ends with" },
+];
+
+function applyOperator(
+  cellValue: string,
+  operator: FilterOperator,
+  query: string
+): boolean {
+  const cell = cellValue.toLowerCase();
+  const q = query.toLowerCase();
+  switch (operator) {
+    case "contains":
+      return cell.includes(q);
+    case "equals":
+      return cell === q;
+    case "startsWith":
+      return cell.startsWith(q);
+    case "endsWith":
+      return cell.endsWith(q);
+  }
+}
 
 export type DataGridProps<T> = {
-  columns: ColumnDef<T, unknown>[];
+  columns: ColumnDef<T, any>[];
   data: T[];
-  getRowId: (row: T) => string;
-  /** Optional global filter (e.g. search) applied across columns */
-  globalFilter?: string;
-  onGlobalFilterChange?: (value: string) => void;
-  /** Loading / empty / error - only one should be set */
+  getRowId: (row: T, index: number) => string;
   isLoading?: boolean;
-  isEmpty?: boolean;
   error?: string | null;
-  /** Row selection */
-  selectedRowIds?: Set<string>;
-  onSelectedRowIdsChange?: (ids: Set<string>) => void;
-  /** Height of the scroll container (default 500) */
   height?: number;
+  showSelectionSummary?: boolean;
+  filterableColumns?: { id: string; label: string }[];
 };
 
 export function DataGrid<T>({
   columns,
   data,
   getRowId,
-  globalFilter,
-  onGlobalFilterChange,
   isLoading,
-  isEmpty,
   error,
-  selectedRowIds = new Set(),
-  onSelectedRowIdsChange,
-  height = 500,
+  height = 400,
+  showSelectionSummary = true,
+  filterableColumns = [],
 }: DataGridProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [filterRows, setFilterRows] = useState<FilterRow[]>([]);
+  const [currentColumn, setCurrentColumn] = useState(filterableColumns[0]?.id ?? "");
+  const [currentOperator, setCurrentOperator] = useState<FilterOperator>("contains");
+  const [currentValue, setCurrentValue] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const outerContainerRef = useRef<HTMLDivElement>(null);
 
-  const rowSelection = useMemo(() => {
-    const sel: Record<string, boolean> = {};
-    selectedRowIds.forEach((id) => (sel[id] = true));
-    return sel;
-  }, [selectedRowIds]);
+  const filteredData = useMemo(() => {
+    if (filterRows.length === 0) return data;
+    return data.filter((row) =>
+      filterRows.every((f) => {
+        if (!f.value.trim()) return true;
+        const col = columns.find(
+          (c) => "accessorKey" in c && c.accessorKey === f.columnId
+        );
+        if (!col || !("accessorKey" in col)) return true;
+        const cellValue = String(
+          (row as Record<string, unknown>)[col.accessorKey as string] ?? ""
+        );
+        return applyOperator(cellValue, f.operator, f.value);
+      })
+    );
+  }, [data, filterRows, columns]);
 
-  const table = useReactTable({
-    data,
+  const table = useReactTable<T>({
+    data: filteredData,
     columns,
-    getRowId: (row) => {
-      const r = row as { original?: T; id?: string };
-      if (r.original != null) return getRowId(r.original);
-      return r.id ?? "";
+    defaultColumn: {
+      filterFn: (row, columnId, filterValue) => {
+        const query = String(filterValue ?? "").trim().toLowerCase();
+        if (!query) return true;
+        return String(row.getValue(columnId) ?? "")
+          .toLowerCase()
+          .includes(query);
+      },
     },
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter: globalFilter ?? undefined,
-      rowSelection,
-    },
+    getRowId: (row, index) => getRowId(row, index),
+    state: { sorting, columnFilters, rowSelection },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: onGlobalFilterChange ?? (() => {}),
-    onRowSelectionChange: (updater) => {
-      const prev: Record<string, boolean> = {};
-      selectedRowIds.forEach((id) => (prev[id] = true));
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      const ids = new Set<string>();
-      Object.entries(next).forEach(([id, v]) => v && ids.add(id));
-      onSelectedRowIdsChange?.(ids);
-    },
+    onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    globalFilterFn: (row, _columnIds, filterValue) => {
-      const s = String(filterValue ?? "").toLowerCase().trim();
-      if (!s) return true;
-      return row.getVisibleCells().some((cell) =>
-        String(cell.getValue() ?? "").toLowerCase().includes(s)
-      );
-    },
   });
 
+  const totalTableWidth = useMemo(
+    () => table.getTotalSize(),
+    [table.getState().columnSizing, table.getVisibleLeafColumns().length]
+  );
+
   const { rows } = table.getRowModel();
-  const parentRef = useRef<HTMLTableSectionElement | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => tableContainerRef.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 10,
+    overscan: 20,
   });
-
   const virtualRows = rowVirtualizer.getVirtualItems();
+
+  // --- Keyboard ---
+  const focusRowAtIndex = useCallback(
+    (targetIndex: number) => {
+      if (!rows.length || !tableContainerRef.current) return;
+      const bounded = Math.max(0, Math.min(targetIndex, rows.length - 1));
+      rowVirtualizer.scrollToIndex(bounded, { align: "auto" });
+      requestAnimationFrame(() => {
+        const rowEl = tableContainerRef.current?.querySelector<HTMLElement>(
+          `[data-row-index="${bounded}"]`
+        );
+        rowEl?.focus();
+      });
+    },
+    [rowVirtualizer, rows.length]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!parentRef.current) return;
-      const focusEl = document.activeElement;
-      if (!focusEl?.closest("[data-grid-body]")) return;
-      const idx = virtualRows.findIndex(
-        (v) => (focusEl as HTMLElement).dataset.rowIndex === String(v.index)
-      );
-      if (idx === -1) return;
-      if (e.key === "ArrowDown" && idx < virtualRows.length - 1) {
+      const active = document.activeElement as HTMLElement | null;
+      const rowIndexAttr = active?.dataset.rowIndex;
+      const currentIndex = rowIndexAttr ? Number(rowIndexAttr) : -1;
+
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        const nextRow = parentRef.current.querySelector(
-          `[data-row-index="${virtualRows[idx + 1].index}"]`
-        );
-        (nextRow as HTMLElement)?.focus();
-      } else if (e.key === "ArrowUp" && idx > 0) {
+        focusRowAtIndex(currentIndex + 1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
         e.preventDefault();
-        const prevRow = parentRef.current.querySelector(
-          `[data-row-index="${virtualRows[idx - 1].index}"]`
-        );
-        (prevRow as HTMLElement)?.focus();
-      } else if (e.key === " ") {
+        focusRowAtIndex(currentIndex < 0 ? 0 : currentIndex - 1);
+        return;
+      }
+      if (e.key === "Home") {
         e.preventDefault();
-        const row = rows[virtualRows[idx].index];
-        if (row) {
-          row.toggleSelected();
-        }
+        focusRowAtIndex(0);
+        return;
+      }
+      if (e.key === "End") {
+        e.preventDefault();
+        focusRowAtIndex(rows.length - 1);
+        return;
+      }
+      if (e.key === " " || e.key === "Enter") {
+        if (currentIndex < 0) return;
+        e.preventDefault();
+        rows[currentIndex]?.toggleSelected();
       }
     },
-    [rows, virtualRows]
+    [focusRowAtIndex, rows]
   );
 
+  // --- Filter helpers ---
+  const addFilter = () => {
+    const trimmed = currentValue.trim();
+    if (!trimmed || !currentColumn) return;
+    setFilterRows((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        columnId: currentColumn,
+        operator: currentOperator,
+        value: trimmed,
+      },
+    ]);
+    setCurrentValue("");
+  };
+
+  const removeActiveFilter = (id: string) => {
+    setFilterRows((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const clearAllFilters = () => {
+    setFilterRows([]);
+  };
+
+  const getColumnLabel = (columnId: string) =>
+    filterableColumns.find((c) => c.id === columnId)?.label ?? columnId;
+
+  // --- State screens ---
   if (error) {
     return (
       <div
@@ -154,7 +242,7 @@ export function DataGrid<T>({
   if (isLoading) {
     return (
       <div
-        className="flex items-center justify-center rounded-lg border border-border bg-muted/30"
+        className="flex items-center justify-center border border-border/40 bg-background"
         style={{ height }}
       >
         Loading…
@@ -162,10 +250,10 @@ export function DataGrid<T>({
     );
   }
 
-  if (isEmpty) {
+  if (data.length === 0) {
     return (
       <div
-        className="flex items-center justify-center rounded-lg border border-border bg-muted/30 text-muted-foreground"
+        className="flex items-center justify-center border border-border/40 bg-background text-muted-foreground"
         style={{ height }}
       >
         No rows
@@ -174,126 +262,257 @@ export function DataGrid<T>({
   }
 
   return (
-    <div className="space-y-2">
-      <div
-        ref={tableContainerRef}
-        className="rounded-lg border border-border w-full min-w-0"
-        style={{
-          height,
-          overflowX: "auto",
-          overflowY: "hidden",
-          WebkitOverflowScrolling: "touch",
-        }}
-      >
-        <table
-          className="w-full border-collapse table-fixed"
-          style={{ width: "max(100%, 800px)", minWidth: 800 }}
-        >
-          <thead
-            className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-backdrop-filter:bg-muted/80 border-b border-border"
-            style={{ paddingRight: "var(--scrollbar-gutter-width, 15px)" }}
-          >
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const isFlex = (header.column.columnDef.meta as { flex?: boolean } | undefined)?.flex;
-                  return (
-                  <th
-                    key={header.id}
-                    className="h-11 px-4 text-left text-sm font-medium text-foreground align-middle"
-                    style={{
-                      width: isFlex ? undefined : header.getSize(),
-                      minWidth: header.getSize(),
-                    }}
+    <div className="space-y-3">
+      {/* ── Filter bar ── */}
+      {filterableColumns.length > 0 && (
+        <div className="space-y-3">
+          {/* Single search row */}
+          <div className="flex items-center gap-2">
+            <Select
+              value={currentColumn}
+              onValueChange={setCurrentColumn}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {filterableColumns.map((col) => (
+                  <SelectItem key={col.id} value={col.id}>
+                    {col.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={currentOperator}
+              onValueChange={(v) => setCurrentOperator(v as FilterOperator)}
+            >
+              <SelectTrigger className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FILTER_OPERATORS.map((op) => (
+                  <SelectItem key={op.value} value={op.value}>
+                    {op.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Input
+              value={currentValue}
+              onChange={(e) => setCurrentValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addFilter();
+              }}
+              placeholder={`Filter ${getColumnLabel(currentColumn).toLowerCase()}...`}
+              className="flex-1 min-w-[200px]"
+            />
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={addFilter}
+              className="gap-1.5 shrink-0"
+            >
+              <Search className="h-3.5 w-3.5" />
+              Search
+            </Button>
+          </div>
+
+          {/* Active filter pills */}
+          {filterRows.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {filterRows.map((f) => (
+                <Badge
+                  key={f.id}
+                  variant="outline"
+                  className="h-7 gap-1.5 pl-2.5 pr-1 text-xs"
+                >
+                  <span className="font-semibold">
+                    {getColumnLabel(f.columnId)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {FILTER_OPERATORS.find((o) => o.value === f.operator)
+                      ?.label?.toLowerCase()}
+                  </span>
+                  <span className="font-mono text-primary">
+                    &ldquo;{f.value}&rdquo;
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeActiveFilter(f.id)}
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
                   >
-                    <div
-                      className={cn(
-                        "flex items-center gap-1",
-                        header.column.getCanSort() && "cursor-pointer select-none"
-                      )}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() === "asc" && " ↑"}
-                      {header.column.getIsSorted() === "desc" && " ↓"}
-                    </div>
-                  </th>
-                );
-                })}
-              </tr>
-            ))}
-          </thead>
-          <tbody
-            ref={parentRef}
-            data-grid-body
-            tabIndex={0}
-            onKeyDown={handleKeyDown}
-            className="block focus:outline-none relative"
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              {filterRows.length > 1 && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Table ── */}
+      <div
+        className="flex flex-col border border-border/40 bg-background w-fit"
+        style={{ maxWidth: "100%", overflowX: "auto" }}
+        ref={outerContainerRef}
+      >
+        <div style={{ width: `${Math.max(totalTableWidth + 10, 100)}px` }}>
+          <div className="overflow-hidden">
+            <Table
+              style={{
+                width: `${totalTableWidth}px`,
+                tableLayout: "fixed",
+              }}
+            >
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id} className="flex w-full">
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        style={{
+                          width: header.getSize(),
+                          flex: `0 0 ${header.getSize()}px`,
+                        }}
+                        className="h-11 px-3 text-left align-middle text-sm font-semibold whitespace-nowrap text-primary-foreground"
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div
+                            className={cn(
+                              "flex items-center gap-1.5 h-full",
+                              header.column.getCanSort() &&
+                                "cursor-pointer select-none"
+                            )}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {header.column.getCanSort() && (
+                              <span className="inline-flex shrink-0 text-primary-foreground">
+                                {header.column.getIsSorted() === "asc" ? (
+                                  <ArrowUp className="h-4 w-4" />
+                                ) : header.column.getIsSorted() === "desc" ? (
+                                  <ArrowDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronsUpDown className="h-4 w-4 opacity-60" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </th>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+            </Table>
+          </div>
+
+          <div
+            ref={tableContainerRef}
             style={{
-              height: height - HEADER_HEIGHT,
-              maxHeight: height - HEADER_HEIGHT,
-              minHeight: 0,
+              width: `${Math.max(totalTableWidth + 10, 100)}px`,
+              height: `${height}px`,
               overflowY: "auto",
               overflowX: "hidden",
-              position: "relative",
-              WebkitOverflowScrolling: "touch",
-              scrollbarGutter: "stable",
             }}
+            onWheel={(e) => {
+              if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                e.stopPropagation();
+                if (outerContainerRef.current) {
+                  outerContainerRef.current.scrollLeft += e.deltaX;
+                }
+              }
+            }}
+            onKeyDown={handleKeyDown}
           >
-            <tr style={{ height: rowVirtualizer.getTotalSize() }} aria-hidden />
-            {virtualRows.map((virtualRow) => {
-              const row = rows[virtualRow.index];
-              if (!row) return null;
-              return (
-                <tr
-                  key={row.id}
-                  data-row-index={virtualRow.index}
-                  tabIndex={0}
-                  className={cn(
-                    "border-b border-border/50 transition-colors absolute left-0 w-full table-row",
-                    row.getIsSelected()
-                      ? "bg-primary/10"
-                      : "hover:bg-muted/50"
-                  )}
-                  style={{
-                    height: ROW_HEIGHT,
-                    top: virtualRow.start,
-                    display: "table",
-                    tableLayout: "fixed",
-                    width: "100%",
-                  }}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest("button")) return;
-                    row.toggleSelected();
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const isFlex = (cell.column.columnDef.meta as { flex?: boolean } | undefined)?.flex;
-                    return (
-                    <td
-                      key={cell.id}
-                      className="px-4 py-2 text-sm text-foreground align-middle whitespace-nowrap"
+            <Table
+              style={{
+                width: `${totalTableWidth}px`,
+                tableLayout: "fixed",
+              }}
+            >
+              <TableBody
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
+                {virtualRows.map((virtualItem) => {
+                  const row = rows[virtualItem.index];
+                  if (!row) return null;
+                  return (
+                    <TableRow
+                      key={virtualItem.key}
+                      data-row-index={virtualItem.index}
+                      tabIndex={0}
+                      className="absolute top-0 left-0 flex w-full items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       style={{
-                        width: isFlex ? undefined : cell.column.getSize(),
-                        minWidth: cell.column.getSize(),
+                        height: `${virtualItem.size}px`,
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
+                      data-state={
+                        row.getIsSelected() ? "selected" : undefined
+                      }
+                      onClick={(e) => {
+                        if (
+                          (e.target as HTMLElement).closest("button,input")
+                        )
+                          return;
+                        row.toggleSelected();
                       }}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          style={{
+                            width: cell.column.getSize(),
+                            flex: `0 0 ${cell.column.getSize()}px`,
+                          }}
+                          className="p-3 text-sm text-foreground align-middle whitespace-nowrap"
+                        >
+                          <span className="whitespace-nowrap overflow-hidden text-ellipsis max-w-full block">
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </span>
+                        </td>
+                      ))}
+                    </TableRow>
                   );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      {showSelectionSummary && (
+        <p className="text-sm text-muted-foreground">
+          {table.getSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredRowModel().rows.length} rows selected
+        </p>
+      )}
     </div>
   );
 }

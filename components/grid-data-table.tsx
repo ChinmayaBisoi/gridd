@@ -65,6 +65,23 @@ export function GridDataTable({
         enableColumnFilter: false,
         size: 40,
       }),
+      columnHelper.display({
+        id: "slNo",
+        header: "Sl No",
+        cell: ({ row }) => row.index + 1,
+        enableSorting: false,
+        enableColumnFilter: false,
+        size: 72,
+      }),
+      columnHelper.accessor("id", {
+        header: "ID",
+        size: 280,
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs truncate block max-w-full" title={getValue()}>
+            {getValue()}
+          </span>
+        ),
+      }),
       columnHelper.accessor("firstName", {
         header: "First Name",
         size: 180,
@@ -130,7 +147,7 @@ export function GridDataTable({
     <DataGrid
       columns={columns}
       data={initialData}
-      getRowId={(row, index) => `${row.email}-${index}`}
+      getRowId={(row) => row.id}
       isLoading={isLoading || !hydrated}
       error={error}
       height={400}

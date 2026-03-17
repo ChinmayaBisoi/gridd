@@ -13,6 +13,7 @@ const data = Array.from({ length: COUNT }, (_, i) => {
   const firstName = faker.person.firstName();
   const lastName = faker.person.lastName();
   return {
+    id: faker.string.uuid(),
     firstName,
     lastName,
     age: faker.number.int({ min: 18, max: 90 }),

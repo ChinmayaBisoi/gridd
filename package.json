@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-mock": "node scripts/generate-mock-users.mjs"
+    "generate-mock": "node scripts/generate-mock-users.mjs",
+    "registry:build": "shadcn build"
   },
   "dependencies": {
     "@faker-js/faker": "^10.3.0",

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "gridd",
+  "homepage": "https://github.com/your-username/gridd",
+  "items": [
+    {
+      "name": "data-grid",
+      "type": "registry:block",
+      "title": "DataGrid",
+      "description": "High-performance virtualized data grid with sorting, multi-column filtering, row selection, keyboard navigation, and optional URL state sync via nuqs.",
+      "dependencies": [
+        "@tanstack/react-table@^8.21.3",
+        "@tanstack/react-virtual@^3.13.23",
+        "nuqs@^2.8.9"
+      ],
+      "registryDependencies": [
+        "table",
+        "badge",
+        "button",
+        "input",
+        "select"
+      ],
+      "files": [
+        {
+          "path": "registry/new-york/data-grid/data-grid.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/grid-search-params.ts",
+          "type": "registry:lib",
+          "target": "lib/grid-search-params.ts"
+        }
+      ]
+    }
+  ]
+}

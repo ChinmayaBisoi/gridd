@@ -19,8 +19,8 @@ export default function AppHeader({
   variant?: AppHeaderVariant;
 }) {
   return (
-    <header className="border-b border-border/40">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header className="border-b border-border/40 overflow-x-hidden">
+      <div className="mx-auto flex h-14 max-w-6xl min-w-0 items-center justify-between gap-4 px-4">
         <Link href="/" className={brandClass}>
           Gridd
         </Link>

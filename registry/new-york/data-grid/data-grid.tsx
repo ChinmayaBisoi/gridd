@@ -3,7 +3,6 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
@@ -11,82 +10,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Search, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Table, TableBody, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-
-const ROW_HEIGHT = 35;
-
-export type FilterOperator = "contains" | "equals" | "startsWith" | "endsWith";
-
-export type FilterRow = {
-  id: string;
-  columnId: string;
-  operator: FilterOperator;
-  value: string;
-};
-
-const FILTER_OPERATORS: { value: FilterOperator; label: string }[] = [
-  { value: "contains", label: "Contains" },
-  { value: "equals", label: "Equals" },
-  { value: "startsWith", label: "Starts with" },
-  { value: "endsWith", label: "Ends with" },
-];
-
-function applyOperator(
-  cellValue: string,
-  operator: FilterOperator,
-  query: string
-): boolean {
-  const cell = cellValue.toLowerCase();
-  const q = query.toLowerCase();
-  switch (operator) {
-    case "contains":
-      return cell.includes(q);
-    case "equals":
-      return cell === q;
-    case "startsWith":
-      return cell.startsWith(q);
-    case "endsWith":
-      return cell.endsWith(q);
-  }
-}
-
-export type DataGridControlledState = {
-  sorting: SortingState;
-  setSorting: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
-  filterRows: FilterRow[];
-  setFilterRows: (updater: FilterRow[] | ((prev: FilterRow[]) => FilterRow[])) => void;
-  rowSelection: Record<string, boolean>;
-  setRowSelection: (
-    updater:
-      | Record<string, boolean>
-      | ((prev: Record<string, boolean>) => Record<string, boolean>)
-  ) => void;
-};
-
-export type DataGridProps<T> = {
-  columns: ColumnDef<T, any>[];
-  data: T[];
-  getRowId: (row: T, index: number) => string;
-  isLoading?: boolean;
-  error?: string | null;
-  height?: number;
-  showSelectionSummary?: boolean;
-  filterableColumns?: { id: string; label: string }[];
-  controlledState?: DataGridControlledState;
-};
+import { DataGridEmpty } from "./data-grid-empty";
+import { DataGridFilterBar } from "./data-grid-filter-bar";
+import { DataGridFooter } from "./data-grid-footer";
+import { DataGridSkeleton } from "./data-grid-skeleton";
+import { DataGridTable } from "./data-grid-table";
+import type { DataGridProps, FilterOperator, FilterRow } from "./types";
+import { applyOperator } from "./utils";
 
 export function DataGrid<T>({
   columns,
@@ -101,20 +32,25 @@ export function DataGrid<T>({
 }: DataGridProps<T>) {
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [internalRowSelection, setInternalRowSelection] = useState<Record<string, boolean>>({});
+  const [internalRowSelection, setInternalRowSelection] = useState<
+    Record<string, boolean>
+  >({});
   const [internalFilterRows, setInternalFilterRows] = useState<FilterRow[]>([]);
-  const [currentColumn, setCurrentColumn] = useState(filterableColumns[0]?.id ?? "");
+  const [currentColumn, setCurrentColumn] = useState(
+    filterableColumns[0]?.id ?? ""
+  );
   const [currentOperator, setCurrentOperator] = useState<FilterOperator>("contains");
   const [currentValue, setCurrentValue] = useState("");
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const outerContainerRef = useRef<HTMLDivElement>(null);
 
   const sorting = controlledState?.sorting ?? internalSorting;
   const setSorting = controlledState?.setSorting ?? setInternalSorting;
   const filterRows = controlledState?.filterRows ?? internalFilterRows;
   const setFilterRows = controlledState?.setFilterRows ?? setInternalFilterRows;
   const rowSelection = controlledState?.rowSelection ?? internalRowSelection;
-  const setRowSelection = controlledState?.setRowSelection ?? setInternalRowSelection;
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const outerContainerRef = useRef<HTMLDivElement>(null);
+  const setRowSelection =
+    controlledState?.setRowSelection ?? setInternalRowSelection;
 
   const filteredData = useMemo(() => {
     if (filterRows.length === 0) return data;
@@ -162,16 +98,14 @@ export function DataGrid<T>({
   );
 
   const { rows } = table.getRowModel();
-
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => 35,
     overscan: 20,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
 
-  // --- Keyboard ---
   const focusRowAtIndex = useCallback(
     (targetIndex: number) => {
       if (!rows.length || !tableContainerRef.current) return;
@@ -222,8 +156,7 @@ export function DataGrid<T>({
     [focusRowAtIndex, rows]
   );
 
-  // --- Filter helpers ---
-  const addFilter = () => {
+  const addFilter = useCallback(() => {
     const trimmed = currentValue.trim();
     if (!trimmed || !currentColumn) return;
     setFilterRows((prev) => [
@@ -236,23 +169,23 @@ export function DataGrid<T>({
       },
     ]);
     setCurrentValue("");
-  };
+  }, [currentColumn, currentOperator, currentValue, setFilterRows]);
 
-  const removeActiveFilter = (id: string) => {
-    setFilterRows((prev) => prev.filter((f) => f.id !== id));
-  };
+  const removeActiveFilter = useCallback(
+    (id: string) => {
+      setFilterRows((prev) => prev.filter((f) => f.id !== id));
+    },
+    [setFilterRows]
+  );
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilterRows([]);
-  };
+  }, [setFilterRows]);
 
-  const getColumnLabel = (columnId: string) =>
-    filterableColumns.find((c) => c.id === columnId)?.label ?? columnId;
-
-  // --- State screens ---
   if (error) {
     return (
       <div
+        data-slot="data-grid-error"
         className="flex items-center justify-center rounded-lg border border-destructive/50 bg-destructive/10 text-destructive"
         style={{ height }}
       >
@@ -263,339 +196,58 @@ export function DataGrid<T>({
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {/* Filter skeleton */}
-        {filterableColumns.length > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-[140px] rounded-lg bg-muted animate-pulse" />
-            <div className="h-8 w-[130px] rounded-lg bg-muted animate-pulse" />
-            <div className="h-8 flex-1 min-w-[200px] rounded-lg bg-muted animate-pulse" />
-            <div className="h-8 w-[80px] rounded-lg bg-primary/20 animate-pulse" />
-          </div>
-        )}
-
-        {/* Table skeleton */}
-        <div className="border border-border/40 bg-background overflow-hidden">
-          <div className="h-11 bg-primary flex items-center gap-3 px-3">
-            {columns.map((col, i) => (
-              <div
-                key={i}
-                className="h-3.5 rounded bg-primary-foreground/20 animate-pulse"
-                style={{
-                  width: ("size" in col ? (col.size as number) : 150) * 0.5,
-                }}
-              />
-            ))}
-          </div>
-          <div>
-            {Array.from({ length: Math.floor(height / ROW_HEIGHT) }).map(
-              (_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 px-3 border-b border-border/40"
-                  style={{ height: ROW_HEIGHT }}
-                >
-                  {columns.map((col, j) => (
-                    <div
-                      key={j}
-                      className="h-3 rounded bg-muted animate-pulse"
-                      style={{
-                        width:
-                          ("size" in col ? (col.size as number) : 150) *
-                          (0.4 + ((i + j) % 3) * 0.15),
-                        animationDelay: `${(i * columns.length + j) * 30}ms`,
-                      }}
-                    />
-                  ))}
-                </div>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* Footer skeleton */}
-        {showSelectionSummary && (
-          <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-        )}
-      </div>
+      <DataGridSkeleton
+        columns={columns as ColumnDef<unknown, unknown>[]}
+        height={height}
+        hasFilterBar={filterableColumns.length > 0}
+      />
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="space-y-3">
-        {/* Show filter bar even when empty */}
-        {filterableColumns.length > 0 && (
-          <div className="flex items-center gap-2 opacity-50 pointer-events-none">
-            <div className="h-8 w-[140px] rounded-lg bg-muted" />
-            <div className="h-8 w-[130px] rounded-lg bg-muted" />
-            <div className="h-8 flex-1 min-w-[200px] rounded-lg bg-muted" />
-            <div className="h-8 w-[80px] rounded-lg bg-muted" />
-          </div>
-        )}
-        <div
-          className="flex items-center justify-center border border-border/40 bg-background text-muted-foreground"
-          style={{ height }}
-        >
-          No rows
-        </div>
-      </div>
+      <DataGridEmpty
+        height={height}
+        hasFilterBar={filterableColumns.length > 0}
+      />
     );
   }
 
   return (
-    <div className="space-y-3">
-      {/* ── Filter bar ── */}
+    <div data-slot="data-grid" className="space-y-3">
       {filterableColumns.length > 0 && (
-        <div className="space-y-3">
-          {/* Single search row */}
-          <div className="flex items-center gap-2">
-            <Select
-              value={currentColumn}
-              onValueChange={setCurrentColumn}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {filterableColumns.map((col) => (
-                  <SelectItem key={col.id} value={col.id}>
-                    {col.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={currentOperator}
-              onValueChange={(v) => setCurrentOperator(v as FilterOperator)}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FILTER_OPERATORS.map((op) => (
-                  <SelectItem key={op.value} value={op.value}>
-                    {op.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              value={currentValue}
-              onChange={(e) => setCurrentValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addFilter();
-              }}
-              placeholder={`Filter ${getColumnLabel(currentColumn).toLowerCase()}...`}
-              className="flex-1 min-w-[200px]"
-            />
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={addFilter}
-              className="gap-1.5 shrink-0"
-            >
-              <Search className="h-3.5 w-3.5" />
-              Search
-            </Button>
-          </div>
-
-          {/* Active filter pills */}
-          {filterRows.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {filterRows.map((f) => (
-                <Badge
-                  key={f.id}
-                  variant="outline"
-                  className="h-7 gap-1.5 pl-2.5 pr-1 text-xs"
-                >
-                  <span className="font-semibold">
-                    {getColumnLabel(f.columnId)}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {FILTER_OPERATORS.find((o) => o.value === f.operator)
-                      ?.label?.toLowerCase()}
-                  </span>
-                  <span className="font-mono text-primary">
-                    &ldquo;{f.value}&rdquo;
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeActiveFilter(f.id)}
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {filterRows.length > 1 && (
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive"
-                >
-                  Clear all
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+        <DataGridFilterBar
+          filterableColumns={filterableColumns}
+          currentColumn={currentColumn}
+          setCurrentColumn={setCurrentColumn}
+          currentOperator={currentOperator}
+          setCurrentOperator={setCurrentOperator}
+          currentValue={currentValue}
+          setCurrentValue={setCurrentValue}
+          filterRows={filterRows}
+          addFilter={addFilter}
+          removeActiveFilter={removeActiveFilter}
+          clearAllFilters={clearAllFilters}
+        />
       )}
 
-      {/* ── Table ── */}
-      <div
-        className="flex flex-col border border-border/40 bg-background w-fit"
-        style={{ maxWidth: "100%", overflowX: "auto" }}
-        ref={outerContainerRef}
-      >
-        <div style={{ width: `${Math.max(totalTableWidth + 10, 100)}px` }}>
-          <div className="overflow-hidden">
-            <Table
-              style={{
-                width: `${totalTableWidth}px`,
-                tableLayout: "fixed",
-              }}
-            >
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="flex w-full">
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        style={{
-                          width: header.getSize(),
-                          flex: `0 0 ${header.getSize()}px`,
-                        }}
-                        className="h-11 px-3 text-left align-middle text-sm font-semibold whitespace-nowrap text-primary-foreground"
-                      >
-                        {header.isPlaceholder ? null : (
-                          <div
-                            className={cn(
-                              "flex items-center gap-1.5 h-full",
-                              header.column.getCanSort() &&
-                                "cursor-pointer select-none"
-                            )}
-                            onClick={header.column.getToggleSortingHandler()}
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                            {header.column.getCanSort() && (
-                              <span className="inline-flex shrink-0 text-primary-foreground">
-                                {header.column.getIsSorted() === "asc" ? (
-                                  <ArrowUp className="h-4 w-4" />
-                                ) : header.column.getIsSorted() === "desc" ? (
-                                  <ArrowDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronsUpDown className="h-4 w-4 opacity-60" />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </th>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-            </Table>
-          </div>
+      <DataGridTable<T>
+        table={table}
+        totalTableWidth={totalTableWidth}
+        tableContainerRef={tableContainerRef}
+        outerContainerRef={outerContainerRef}
+        virtualRows={virtualRows}
+        rowVirtualizerTotalSize={rowVirtualizer.getTotalSize()}
+        height={height}
+        onKeyDown={handleKeyDown}
+      />
 
-          <div
-            ref={tableContainerRef}
-            style={{
-              width: `${Math.max(totalTableWidth + 10, 100)}px`,
-              height: `${height}px`,
-              overflowY: "auto",
-              overflowX: "hidden",
-            }}
-            onWheel={(e) => {
-              if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                e.stopPropagation();
-                if (outerContainerRef.current) {
-                  outerContainerRef.current.scrollLeft += e.deltaX;
-                }
-              }
-            }}
-            onKeyDown={handleKeyDown}
-          >
-            <Table
-              style={{
-                width: `${totalTableWidth}px`,
-                tableLayout: "fixed",
-              }}
-            >
-              <TableBody
-                style={{
-                  height: `${rowVirtualizer.getTotalSize()}px`,
-                  width: "100%",
-                  position: "relative",
-                }}
-              >
-                {virtualRows.map((virtualItem) => {
-                  const row = rows[virtualItem.index];
-                  if (!row) return null;
-                  return (
-                    <TableRow
-                      key={virtualItem.key}
-                      data-row-index={virtualItem.index}
-                      tabIndex={0}
-                      className="absolute top-0 left-0 flex w-full items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                      style={{
-                        height: `${virtualItem.size}px`,
-                        transform: `translateY(${virtualItem.start}px)`,
-                      }}
-                      data-state={
-                        row.getIsSelected() ? "selected" : undefined
-                      }
-                      onClick={(e) => {
-                        if (
-                          (e.target as HTMLElement).closest("button,input")
-                        )
-                          return;
-                        row.toggleSelected();
-                      }}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          style={{
-                            width: cell.column.getSize(),
-                            flex: `0 0 ${cell.column.getSize()}px`,
-                          }}
-                          className="p-3 text-sm text-foreground align-middle whitespace-nowrap"
-                        >
-                          <span className="whitespace-nowrap overflow-hidden text-ellipsis max-w-full block">
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </span>
-                        </td>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
       {showSelectionSummary && (
-        <p className="text-sm text-muted-foreground">
-          {table.getSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} rows selected
-          {" · "}
-          {data.length.toLocaleString()} total rows
-        </p>
+        <DataGridFooter
+          table={table}
+          totalRowCount={data.length}
+          showSelectedIds
+        />
       )}
     </div>
   );

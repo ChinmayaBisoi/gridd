@@ -2,6 +2,9 @@
 
 High-performance, virtualized data grid built for React and Next.js. Sortable columns, multi-column filtering, row selection, keyboard navigation, and optional URL state sync. Designed to drop into any shadcn/ui project or install via the shadcn registry.
 
+**Live demo:** [https://gridd01.vercel.app/grid](https://gridd01.vercel.app/grid)  
+**GitHub:** [https://github.com/ChinmayaBisoi/gridd](https://github.com/ChinmayaBisoi/gridd)
+
 ---
 
 ## Features
@@ -14,7 +17,7 @@ High-performance, virtualized data grid built for React and Next.js. Sortable co
 - **URL state** — Optional [nuqs](https://nuqs.47ng.com/) integration: sort, filters, and selection sync to the URL for shareable/bookmarkable views and back/forward navigation.
 - **Controlled or uncontrolled** — Use internal state only, or pass `controlledState` (e.g. from `useGridSearchParams`) for URL-driven or custom state.
 - **Loading & empty states** — Skeleton and empty-state UI when `isLoading` or no data.
-- **shadcn registry** — Install in any project with `npx shadcn@latest add <url>/r/data-grid.json`.
+- **shadcn registry** — Install in any project with `npx shadcn@latest add https://gridd01.vercel.app/r/data-grid.json`.
 
 ---
 
@@ -40,33 +43,28 @@ High-performance, virtualized data grid built for React and Next.js. Sortable co
 ### Install and run (this repo)
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/ChinmayaBisoi/gridd.git
 cd gridd
 npm install
 npm run generate-mock   # optional: regenerate lib/mock-users.json (10k rows)
 npm run dev
 ```
 
-Open [http://localhost:3000/grid](http://localhost:3000/grid) for the demo page.
+The demo is served at **`/grid`** — open [https://gridd01.vercel.app/grid](https://gridd01.vercel.app/grid).
 
 ### Install in another project (shadcn registry)
 
-With the gridd app running (or deployed), from your Next.js + shadcn project:
+From your Next.js + shadcn project:
 
 ```bash
-npx shadcn@latest add http://localhost:3000/r/data-grid.json
-```
-
-Or use your deployed URL:
-
-```bash
-npx shadcn@latest add https://your-domain.com/r/data-grid.json
+npx shadcn@latest add https://gridd01.vercel.app/r/data-grid.json
 ```
 
 This adds:
 
-- `components/data-grid.tsx` — the `DataGrid` component
+- `components/data-grid/` — `DataGrid` and subcomponents (import from `@/components/data-grid`)
 - `lib/grid-search-params.ts` — `useGridSearchParams` hook (for URL state)
+- `components/ui/table.tsx` — Table with `scrollContainer` prop (for single scrollbar)
 - shadcn dependencies: `table`, `badge`, `button`, `input`, `select`
 - npm dependencies: `@tanstack/react-table`, `@tanstack/react-virtual`, `nuqs`
 
@@ -202,9 +200,9 @@ gridd/
 │   ├── layout.tsx          # NuqsAdapter, theme, fonts
 │   ├── page.tsx            # Home
 │   └── grid/
-│       └── page.tsx        # Demo: GridDataTable + Suspense
+│       └── page.tsx        # Demo at /grid — GridDataTable + Suspense
 ├── components/
-│   ├── data-grid.tsx       # DataGrid component (source of truth for app)
+│   ├── data-grid/          # DataGrid (split into subcomponents)
 │   ├── grid-data-table.tsx # Demo: User columns + useGridSearchParams
 │   ├── app-header.tsx
 │   └── ui/                 # shadcn primitives

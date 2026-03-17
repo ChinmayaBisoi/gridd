@@ -9,11 +9,17 @@ export type User = {
   comments: string;
 };
 
+function randomId8(): string {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function createUser(numUser: number): User[] {
   const users: User[] = [];
   for (let i = 0; i < numUser; i++) {
     users.push({
-      id: faker.string.uuid(),
+      id: randomId8(),
       firstName: faker.person.firstName(),
       lastName: faker.person.lastName(),
       age: faker.number.int({ min: 18, max: 90 }),

@@ -24,7 +24,57 @@
         {
           "path": "registry/new-york/data-grid/data-grid.tsx",
           "type": "registry:component",
-          "target": "components/data-grid.tsx"
+          "target": "components/data-grid/data-grid.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/data-grid-table.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid/data-grid-table.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/data-grid-filter-bar.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid/data-grid-filter-bar.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/data-grid-footer.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid/data-grid-footer.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/data-grid-empty.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid/data-grid-empty.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/data-grid-skeleton.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid/data-grid-skeleton.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/selected-ids-copy.tsx",
+          "type": "registry:component",
+          "target": "components/data-grid/selected-ids-copy.tsx"
+        },
+        {
+          "path": "registry/new-york/data-grid/types.ts",
+          "type": "registry:component",
+          "target": "components/data-grid/types.ts"
+        },
+        {
+          "path": "registry/new-york/data-grid/utils.ts",
+          "type": "registry:component",
+          "target": "components/data-grid/utils.ts"
+        },
+        {
+          "path": "registry/new-york/data-grid/index.ts",
+          "type": "registry:component",
+          "target": "components/data-grid/index.ts"
+        },
+        {
+          "path": "registry/new-york/data-grid/table.tsx",
+          "type": "registry:component",
+          "target": "components/ui/table.tsx"
         },
         {
           "path": "registry/new-york/data-grid/grid-search-params.ts",

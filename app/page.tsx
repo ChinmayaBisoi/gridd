@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight, Github } from "lucide-react";
 import AppHeader from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { InstallBlock } from "@/components/install-block";
@@ -24,14 +25,19 @@ export default function Home() {
 
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Button asChild size="lg">
-            <Link href="/grid">View Demo</Link>
+            <Link href="/grid" className="inline-flex items-center gap-1.5">
+              View Demo
+              <ArrowRight className="size-4 transition-transform group-hover/button:translate-x-0.5" />
+            </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
             <a
               href="https://github.com/your-username/gridd"
               target="_blank"
               rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5"
             >
+              <Github className="size-4" />
               GitHub
             </a>
           </Button>

@@ -2,7 +2,7 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { User } from "@/lib/data";
-import { createColumnHelper } from "@tanstack/react-table";
+import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { MoreVertical } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,7 @@ export function GridDataTable({
       }),
       columnHelper.accessor("id", {
         header: "ID",
-        size: 280,
+        size: 90,
         cell: ({ getValue }) => (
           <span className="font-mono text-xs truncate block max-w-full" title={getValue()}>
             {getValue()}
@@ -130,7 +130,7 @@ export function GridDataTable({
       }),
     ],
     []
-  );
+  ) as ColumnDef<User, unknown>[];
 
   const filterableColumns = useMemo(
     () => [
